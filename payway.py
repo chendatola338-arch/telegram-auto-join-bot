@@ -5,6 +5,12 @@ import httpx
 import qrcode
 from typing import Optional, Dict, Any
 
+try:
+    from curl_cffi.requests import AsyncSession
+    HAS_CURL_CFFI = True
+except ImportError:
+    HAS_CURL_CFFI = False
+
 API_BASE_URL = "https://payway.jlastore.com"
 
 # Browser Headers ដើម្បីការពារកុំឱ្យ Cloudflare ចាប់ និង Block (403 Forbidden)
@@ -18,7 +24,7 @@ HEADERS = {
 
 async def create_payway_transaction(amount: float, aba_data_url: str, tran_id: Optional[str] = None) -> Dict[str, Any]:
     """
-    បង្កើតប្រតិបត្តិការបង់ប្រាក់តាមរយៈ JLA Payway API (មានភ្ជាប់ Auto Retry)
+    បង្កើតប្រតិបត្តិការបង់ប្រាក់តាមរយៈ JLA Payway API (មានភ្ជាប់ Auto Retry និង Cloudflare Bypass)
     """
     if not tran_id:
         tran_id = f"tx_{int(time.time())}_{int(time.time() * 1000) % 1000}"
@@ -33,22 +39,29 @@ async def create_payway_transaction(amount: float, aba_data_url: str, tran_id: O
     last_error = None
     for attempt in range(3):
         try:
-            async with httpx.AsyncClient(timeout=30.0, verify=False, headers=HEADERS) as client:
-                response = await client.post(url, json=payload)
-                if response.status_code == 200:
-                    return response.json()
-                # ករណីជួប Rate Limit ឬ Server Busy សូមរង់ចាំ 2.5 វិនាទីរួច Retry
-                if response.status_code in (502, 503, 504, 429):
-                    last_error = f"Server busy (Status {response.status_code})"
-                    await asyncio.sleep(2.5)
-                    continue
-                response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            last_error = e
-            await asyncio.sleep(2.5)
+            if HAS_CURL_CFFI:
+                async with AsyncSession(impersonate="chrome120") as s:
+                    response = await s.post(url, json=payload, headers=HEADERS, timeout=30)
+                    if response.status_code == 200:
+                        return response.json()
+                    if response.status_code in (502, 503, 504, 429):
+                        last_error = f"Server busy (Status {response.status_code})"
+                        await asyncio.sleep(2.5)
+                        continue
+                    response.raise_for_status()
+            else:
+                async with httpx.AsyncClient(timeout=30.0, verify=False, headers=HEADERS) as client:
+                    response = await client.post(url, json=payload)
+                    if response.status_code == 200:
+                        return response.json()
+                    if response.status_code in (502, 503, 504, 429):
+                        last_error = f"Server busy (Status {response.status_code})"
+                        await asyncio.sleep(2.5)
+                        continue
+                    response.raise_for_status()
         except Exception as e:
             last_error = e
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2.5)
 
     raise Exception(f"Bank API Busy, please try again: {last_error}")
 
@@ -62,10 +75,20 @@ async def check_transaction_status(tran_id: str) -> Dict[str, Any]:
         "tran_id": tran_id
     }
 
-    async with httpx.AsyncClient(timeout=20.0, verify=False, headers=HEADERS) as client:
-        response = await client.post(url, json=payload)
-        if response.status_code == 200:
-            return response.json()
+    try:
+        if HAS_CURL_CFFI:
+            async with AsyncSession(impersonate="chrome120") as s:
+                response = await s.post(url, json=payload, headers=HEADERS, timeout=20)
+                if response.status_code == 200:
+                    return response.json()
+                return {}
+        else:
+            async with httpx.AsyncClient(timeout=20.0, verify=False, headers=HEADERS) as client:
+                response = await client.post(url, json=payload)
+                if response.status_code == 200:
+                    return response.json()
+                return {}
+    except Exception:
         return {}
 
 def is_approved(data: Dict[str, Any]) -> bool:
