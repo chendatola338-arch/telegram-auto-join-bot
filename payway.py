@@ -7,6 +7,15 @@ from typing import Optional, Dict, Any
 
 API_BASE_URL = "https://payway.jlastore.com"
 
+# Browser Headers ដើម្បីការពារកុំឱ្យ Cloudflare ចាប់ និង Block (403 Forbidden)
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://payway.jlastore.com",
+    "Referer": "https://payway.jlastore.com/",
+}
+
 async def create_payway_transaction(amount: float, aba_data_url: str, tran_id: Optional[str] = None) -> Dict[str, Any]:
     """
     បង្កើតប្រតិបត្តិការបង់ប្រាក់តាមរយៈ JLA Payway API (មានភ្ជាប់ Auto Retry)
@@ -24,7 +33,7 @@ async def create_payway_transaction(amount: float, aba_data_url: str, tran_id: O
     last_error = None
     for attempt in range(3):
         try:
-            async with httpx.AsyncClient(timeout=25.0, verify=False) as client:
+            async with httpx.AsyncClient(timeout=30.0, verify=False, headers=HEADERS) as client:
                 response = await client.post(url, json=payload)
                 if response.status_code == 200:
                     return response.json()
@@ -53,7 +62,7 @@ async def check_transaction_status(tran_id: str) -> Dict[str, Any]:
         "tran_id": tran_id
     }
 
-    async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
+    async with httpx.AsyncClient(timeout=20.0, verify=False, headers=HEADERS) as client:
         response = await client.post(url, json=payload)
         if response.status_code == 200:
             return response.json()
