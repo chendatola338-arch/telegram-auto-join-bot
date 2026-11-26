@@ -1,0 +1,13 @@
+# Environment variables (Never upload sensitive tokens to public repo)
+.env
+
+# Database
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
