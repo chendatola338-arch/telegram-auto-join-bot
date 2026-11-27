@@ -26,13 +26,23 @@ from payway import (
 # Load Environment Variables
 def get_config():
     load_dotenv(override=True)
+    
+    # កំណត់តម្លៃសិក្សា ២៧ ដុល្លារ (27 USD)
+    price_val = 27.00
+    price_env = os.getenv("COURSE_PRICE")
+    if price_env and price_env.strip() not in ["30", "30.0", "30.00"]:
+        try:
+            price_val = float(price_env.strip())
+        except Exception:
+            price_val = 27.00
+
     return {
         "BOT_TOKEN": os.getenv("BOT_TOKEN", "").strip(),
         "CHANNEL_ID": os.getenv("CHANNEL_ID", "").strip(),
         "ABA_PAYWAY_LINK": os.getenv("ABA_PAYWAY_LINK", "https://link.payway.com.kh/ABAPAYlP553382Z").strip(),
         "COURSE_TITLE": os.getenv("COURSE_TITLE", "ថ្នាក់រៀនបង្កើត Tool សម្រាយរឿង AI").strip(),
         "COURSE_DESCRIPTION": os.getenv("COURSE_DESCRIPTION", "ចូលរៀនវគ្គបង្កើត Tool សម្រាយរឿង AI ជាមួយមេរៀនលម្អិត និងការ Support ផ្ទាល់").strip(),
-        "COURSE_PRICE": float(os.getenv("COURSE_PRICE", "27.00")),
+        "COURSE_PRICE": price_val,
         "CURRENCY": os.getenv("CURRENCY", "USD").strip(),
         "ADMIN_ID": os.getenv("ADMIN_ID", "").strip(),
     }
