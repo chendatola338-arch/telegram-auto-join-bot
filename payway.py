@@ -108,7 +108,7 @@ def is_approved(data: Dict[str, Any]) -> bool:
 
     return False
 
-def generate_qr_code_image(qr_string: str, amount: float = 30.00, currency: str = "USD") -> io.BytesIO:
+def generate_qr_code_image(qr_string: str, amount: float = 25.00, currency: str = "USD") -> io.BytesIO:
     """
     បង្កើតរូបភាព KHQR Code ស្អាតមានស៊ុម និង Logo តាមទម្រង់ផ្លូវការ (Official ABA / Bakong Template)
     """

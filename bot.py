@@ -27,14 +27,14 @@ from payway import (
 def get_config():
     load_dotenv(override=True)
     
-    # កំណត់តម្លៃសិក្សា ២៧ ដុល្លារ (27 USD)
-    price_val = 27.00
+    # កំណត់តម្លៃសិក្សា ២៥ ដុល្លារ (25 USD)
+    price_val = 25.00
     price_env = os.getenv("COURSE_PRICE")
-    if price_env and price_env.strip() not in ["30", "30.0", "30.00"]:
+    if price_env and price_env.strip() not in ["30", "30.0", "30.00", "27", "27.0", "27.00"]:
         try:
             price_val = float(price_env.strip())
         except Exception:
-            price_val = 27.00
+            price_val = 25.00
 
     return {
         "BOT_TOKEN": os.getenv("BOT_TOKEN", "").strip(),
@@ -87,7 +87,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_admin:
             text += "\n\n*(Admin Mode: អ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីតេស្តបង់ប្រាក់ ឬវាយ /reset ដើម្បីលុបប្រវត្តិ)*"
             admin_kbd = InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 សាកល្បងបង់ប្រាក់ $27 (Admin Test)", callback_data="pay_course")]
+                [InlineKeyboardButton(f"💳 សាកល្បងបង់ប្រាក់ ${cfg['COURSE_PRICE']:.2f} (Admin Test)", callback_data="pay_course")]
             ])
             await update.message.reply_text(text, reply_markup=admin_kbd, parse_mode="Markdown")
         else:
