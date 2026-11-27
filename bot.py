@@ -30,9 +30,9 @@ def get_config():
         "BOT_TOKEN": os.getenv("BOT_TOKEN", "").strip(),
         "CHANNEL_ID": os.getenv("CHANNEL_ID", "").strip(),
         "ABA_PAYWAY_LINK": os.getenv("ABA_PAYWAY_LINK", "https://link.payway.com.kh/ABAPAYlP553382Z").strip(),
-        "COURSE_TITLE": os.getenv("COURSE_TITLE", "វគ្គសិក្សាពិសេស (VIP Course)").strip(),
-        "COURSE_DESCRIPTION": os.getenv("COURSE_DESCRIPTION", "ចូលរៀនវគ្គពិសេសជាមួយមេរៀនលម្អិត និងការ Support ផ្ទាល់").strip(),
-        "COURSE_PRICE": float(os.getenv("COURSE_PRICE", "30.00")),
+        "COURSE_TITLE": os.getenv("COURSE_TITLE", "ថ្នាក់រៀនបង្កើត Tool សម្រាយរឿង AI").strip(),
+        "COURSE_DESCRIPTION": os.getenv("COURSE_DESCRIPTION", "ចូលរៀនវគ្គបង្កើត Tool សម្រាយរឿង AI ជាមួយមេរៀនលម្អិត និងការ Support ផ្ទាល់").strip(),
+        "COURSE_PRICE": float(os.getenv("COURSE_PRICE", "27.00")),
         "CURRENCY": os.getenv("CURRENCY", "USD").strip(),
         "ADMIN_ID": os.getenv("ADMIN_ID", "").strip(),
     }
@@ -67,12 +67,21 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ពិនិត្យមើលថាតើ User ធ្លាប់បានបង់ប្រាក់រួចហើយឬនៅ
     if has_user_paid(user.id):
+        # បើជា Admin អនុញ្ញាតឱ្យមានប៊ូតុងតេស្តបង់ប្រាក់ម្តងទៀត
+        is_admin = str(user.id) == str(cfg.get("ADMIN_ID", ""))
         text = (
             f"👋 សួស្តី {user.first_name}!\n\n"
             f"✅ អ្នកបានចុះឈ្មោះ និងបង់ប្រាក់ក្នុង **{cfg['COURSE_TITLE']}** រួចរាល់ហើយ!\n\n"
             f"ប្រសិនបើអ្នកមិនទាន់បានចូល Channel ឬ Link ផុតកំណត់ សូមទាក់ទងមក Admin តាមរយៈ {cfg['ADMIN_ID'] if cfg['ADMIN_ID'] else 'ជំនួយការ'}។"
         )
-        await update.message.reply_text(text, parse_mode="Markdown")
+        if is_admin:
+            text += "\n\n*(Admin Mode: អ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីតេស្តបង់ប្រាក់ ឬវាយ /reset ដើម្បីលុបប្រវត្តិ)*"
+            admin_kbd = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 សាកល្បងបង់ប្រាក់ $27 (Admin Test)", callback_data="pay_course")]
+            ])
+            await update.message.reply_text(text, reply_markup=admin_kbd, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(text, parse_mode="Markdown")
         return
 
     welcome_text = (
@@ -361,6 +370,18 @@ async def start_health_server(app: Application):
     await site.start()
     logger.info(f"Render health server listening on port {port}")
 
+async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Reset payment status for testing (Admin only)
+    """
+    user = update.effective_user
+    import sqlite3
+    conn = sqlite3.connect("bot_database.db")
+    conn.execute("DELETE FROM payments WHERE user_id = ?", (user.id,))
+    conn.commit()
+    conn.close()
+    await update.message.reply_text("🔄 បាន Reset ទិន្នន័យតេស្តរបស់អ្នករួចរាល់! សូមវាយ /start ម្តងទៀតដើម្បីតេស្តបង់ប្រាក់។")
+
 def main():
     """
     ដំណើរការ Telegram Bot
@@ -388,13 +409,14 @@ def main():
 
     # Commands & Callbacks
     app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CallbackQueryHandler(handle_payment_request, pattern="^pay_course$"))
     app.add_handler(CallbackQueryHandler(check_button_callback, pattern="^check_"))
     app.add_handler(CallbackQueryHandler(cancel_button_callback, pattern="^cancel_"))
     app.add_handler(MessageHandler(filters.ChatType.CHANNEL, channel_post_handler))
 
-    # Start Polling
-    app.run_polling(drop_pending_updates=True)
+    # Start Polling (មិន drop updates ដើម្បីកុំឱ្យបាត់សារពេល Server ភ្ញាក់ពីគេង)
+    app.run_polling(drop_pending_updates=False)
 
 if __name__ == "__main__":
     main()
